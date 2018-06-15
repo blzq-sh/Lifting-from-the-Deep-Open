@@ -23,7 +23,7 @@ __all__ = [
 
 # threshold
 VISIBLE_PART = 1e-3
-MIN_NUM_JOINTS = 5
+MIN_NUM_JOINTS = 1
 CENTER_TR = 0.4
 
 # net attributes
@@ -39,7 +39,7 @@ H36M_NUM_JOINTS = 17
 # draw options
 JOINT_DRAW_SIZE = 3
 LIMB_DRAW_SIZE = 2
-NORMALISATION_COEFFICIENT = 1280*720
+NORMALISATION_COEFFICIENT = 640*480
 
 # test options
 BATCH_SIZE = 4
