@@ -9,6 +9,8 @@ import cv2
 import numpy as np
 import tensorflow as tf
 
+import time
+
 import abc
 ABC = abc.ABCMeta('ABC', (object,), {})
 
@@ -137,17 +139,23 @@ class PoseEstimator(PoseEstimatorInterface):
             }
 
             # Estimate 2D poses
+            start_2d = time.perf_counter()
             pred_2d_pose, pred_likelihood = sess.run([self.pred_2d_pose,
                                                     self.likelihoods],
                                                     feed_dict)
             estimated_2d_pose, visibility = utils.detect_parts_from_likelihoods(pred_2d_pose,
                                                                                 centers,
                                                                                 pred_likelihood)
+            end_2d = time.perf_counter()
 
             # Estimate 3D poses
+            start_3d = time.perf_counter()
             transformed_pose2d, weights = self.poseLifting.transform_joints(
                 estimated_2d_pose.copy(), visibility)
             pose_3d = self.poseLifting.compute_3d(transformed_pose2d, weights)
+            end_3d = time.perf_counter()
+            print("LFTD - 2D: {}, 3D: {}".format(
+                end_2d - start_2d, end_3d - start_3d))
             pose_2d = np.round(estimated_2d_pose / self.scale).astype(np.int32)
 
         return pose_2d, visibility, pose_3d

@@ -18,13 +18,16 @@ __all__ = [
     'NUM_OUTPUT',
     'H36M_NUM_JOINTS',
     'JOINT_DRAW_SIZE',
-    'LIMB_DRAW_SIZE'
+    'LIMB_DRAW_SIZE',
+    'INTERVAL'
 ]
 
 # threshold
 VISIBLE_PART = 1e-3
 MIN_NUM_JOINTS = 1
 CENTER_TR = 0.4
+
+INTERVAL = 0.01
 
 # net attributes
 SIGMA = 7

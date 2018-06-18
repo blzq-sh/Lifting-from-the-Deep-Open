@@ -179,7 +179,7 @@ class Prob3dPose:
         t_m = np.zeros_like(self.mu)
 
         res, a, r = pick_e(w, e2, t_m, self.cam, s, weights=weights,
-                           interval=0.01, depth_reg=depth_reg,
+                           interval=config.INTERVAL, depth_reg=depth_reg,
                            scale_prior=scale_mean)
 
         scale = a[:, :, 0]
@@ -193,7 +193,7 @@ class Prob3dPose:
                 (res2, a2, r2) = pick_e(
                     w[reestimate[i]], ehat, mhat, self.cam, shat,
                     weights=weights[reestimate[i]],
-                    interval=0.01, depth_reg=depth_reg,
+                    interval=config.INTERVAL, depth_reg=depth_reg,
                     scale_prior=scale_mean
                 )
                 res[i:i + 1, reestimate[i]] = res2
