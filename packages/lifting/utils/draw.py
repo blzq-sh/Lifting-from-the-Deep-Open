@@ -43,7 +43,7 @@ def draw_limbs(image, pose_2d, visible):
                      _COLORS[lid], LIMB_DRAW_SIZE*_NORMALISATION_FACTOR, 16)
 
 
-def plot_pose(pose, n_poses, pose_idx):
+def plot_pose(pose, visibility, n_poses, pose_idx):
     """Plot the 3D pose showing the joint connections."""
     import mpl_toolkits.mplot3d.axes3d as p3
 
@@ -76,11 +76,15 @@ def plot_pose(pose, n_poses, pose_idx):
     assert (pose.shape[0] == 3)
     ax = plt.subplot(1, n_poses, pose_idx, projection='3d')
     for c in _CONNECTION:
+        if not visibility[c[0]] or not visibility[c[1]]:
+            continue
         col = '#%02x%02x%02x' % joint_color(c[0])
         ax.plot([pose[0, c[0]], pose[0, c[1]]],
                 [pose[1, c[0]], pose[1, c[1]]],
                 [pose[2, c[0]], pose[2, c[1]]], c=col)
     for j in range(pose.shape[1]):
+        if not visibility[j]:
+            continue
         col = '#%02x%02x%02x' % joint_color(j)
         ax.scatter(pose[0, j], pose[1, j], pose[2, j],
                    c=col, marker='o', edgecolor=col)
@@ -89,4 +93,3 @@ def plot_pose(pose, n_poses, pose_idx):
     ax.set_xlim3d(smallest, largest)
     ax.set_ylim3d(smallest, largest)
     ax.set_zlim3d(smallest, largest)
-
