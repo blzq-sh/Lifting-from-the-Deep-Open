@@ -3,6 +3,10 @@
 
 import __init__
 
+import matplotlib
+matplotlib.use('Agg')  # noqa
+import matplotlib.pyplot as plt
+
 from tf_pose.estimator import TfPoseEstimator as OpPoseEstimator
 from tf_pose.networks import get_graph_path
 from tf_pose import common
@@ -13,14 +17,12 @@ from lifting.utils import Prob3dPose, plot_pose, config, draw_limbs
 
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
 import os
-from os.path import dirname, realpath, join
 import time
 import argparse
 
-DIR_PATH = dirname(realpath(__file__))
-PROJECT_PATH = realpath(DIR_PATH + '/..')
+DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+PROJECT_PATH = os.path.realpath(DIR_PATH + '/..')
 SAVED_SESSIONS_DIR = PROJECT_PATH + '/data/saved_sessions'
 SESSION_PATH = SAVED_SESSIONS_DIR + '/init_session/init'
 PROB_MODEL_PATH = SAVED_SESSIONS_DIR + '/prob_model/prob_model_params.mat'
@@ -58,6 +60,12 @@ def main(args):
             image_size, SESSION_PATH, PROB_MODEL_PATH)
         pose_estimator.initialise()
 
+    if args.track_one:
+        prev_theta = 0
+        if args.average != 0:
+            last_n_pose_2d = np.zeros((args.average, 14, 2))
+            last_n_pose_3d = np.zeros((args.average, 3, 17))
+
     n = 0
     while True:
         n += 1
@@ -70,13 +78,15 @@ def main(args):
         if args.mode == 'openpose':
             # estimation by OpenPose
             start_time_2D = time.perf_counter()
-            estimated_pose_2d = pose_estimator2D.inference(
-                    color_im, resize_to_default=True, upsample_size=2.0)
+            pose_to_plot_2d = pose_estimator2D.inference(
+                    color_im, resize_to_default=True, upsample_size=3.0)
+            pose_2d_mpii, visibility = to_mpii_pose_2d(pose_to_plot_2d)
             end_time_2D = time.perf_counter()
         else:
             # estimation by LFTD
-            estimated_pose_2d, visibility, pose_3d = \
+            estimated_pose_2d, visibility, pose_3d, r = \
                 pose_estimator.estimate(color_im)
+            pose_to_plot_2d = estimated_pose_2d.copy()
 
         if len(estimated_pose_2d) == 0:
             plt.subplot(1, 1, 1)
@@ -84,38 +94,71 @@ def main(args):
             plt.pause(0.01)
             continue
 
+        if args.mode == 'openpose':
+            estimated_pose_2d, weights = pose_lifter3D.transform_joints(
+                np.array(pose_2d_mpii), visibility)
+
+        if args.track_one:
+            if 'prev' not in locals():
+                prev = np.zeros(2)
+            means = np.mean(estimated_pose_2d, axis=1)
+            closest_idx = np.argmin(np.linalg.norm(means-prev, ord=1, axis=1))
+            prev = means[closest_idx]
+            if args.average != 0:
+                last_n_pose_2d[(n-1) % args.average] = estimated_pose_2d
+                if n > args.average:
+                    estimated_pose_2d = \
+                        np.ma.median(np.ma.masked_equal(last_n_pose_2d, 0),
+                                     axis=0)[np.newaxis]
+
         if not args.do_3d:
             pose_3d = []
             start_time_3D, end_time_3D = 0, 0
         elif args.mode == 'openpose':
-            pose_2d_mpii, visibility = to_mpii_pose_2d(estimated_pose_2d)
             start_time_3D = time.perf_counter()
-            transformed_pose_2d, weights = pose_lifter3D.transform_joints(
-                np.array(pose_2d_mpii), visibility)
-            pose_3d = pose_lifter3D.compute_3d(transformed_pose_2d, weights)
+            pose_3d, r = pose_lifter3D.compute_3d(estimated_pose_2d,
+                                                  weights)
             end_time_3D = time.perf_counter()
+        theta = np.arctan2(r[0], r[1])
+
         if args.track_one:
-            if 'prev' not in locals():
-                prev = np.zeros(2)
-            if args.mode == 'openpose':
-                means = np.mean(transformed_pose_2d, axis=1)
-            else:
-                means = np.mean(estimated_pose_2d, axis=1)
-            argmin = np.argmin(np.linalg.norm(means - prev, ord=1, axis=1))
-            pose_3d = np.expand_dims(pose_3d[argmin], axis=0)
-            prev = means[argmin]
+            pose_3d = pose_3d[closest_idx, np.newaxis]
+            theta = theta[closest_idx]
+            if n > 1:
+                r_diff = np.squeeze(theta) - np.squeeze(prev_theta)
+                if abs(r_diff) > 1:
+                    rotate_back = \
+                        np.array([[np.cos(r_diff), -np.sin(r_diff), 0],
+                                  [np.sin(r_diff), np.cos(r_diff),  0],
+                                  [0,              0,               1]])
+                    rotate_back = np.identity(3)
+                    pose_3d[0] = pose_3d[0].T.dot(rotate_back).T
+                    pose_3d[:, 1, 4, 11, 14] *= -1
+                    theta = prev_theta
+            prev_theta = theta
+            if args.average != 0 and False:
+                last_n_pose_3d[(n-1) % args.average] = pose_3d
+                if n > args.average:
+                    pose_3d = \
+                        np.ma.median(np.ma.masked_equal(pose_3d, 0),
+                                     axis=0)[np.newaxis]
 
         # Show 2D and 3D poses
-        display_results(args.mode,
-                        color_im, estimated_pose_2d, visibility, pose_3d)
+        display_results(args.mode, color_im,
+                        pose_to_plot_2d, visibility, pose_3d)
+
         if args.output:
             fig.savefig(os.path.join(os.path.abspath(args.output),
                                      'out{:09d}.png'.format(n)))
-
         if args.mode == 'openpose':
-            print("OP - 2D: {}, 3D: {}".format(
+            print("OP - 2D: {:.5f}, 3D: {:.5f}".format(
                 end_time_2D - start_time_2D,
                 end_time_3D - start_time_3D))
+        if args.save_poses:
+            np.savez(os.path.join(
+                        os.path.abspath(args.save_poses),
+                        'poses_{:09d}'.format(n)),
+                     estimated_pose_2d, visibility, pose_3d)
         plt.pause(0.01)
         fig.clf()
 
@@ -150,7 +193,6 @@ def from_coco(human):  # Reversed y and x from tf_openpose
         (MPIIPart.LKnee, CocoPart.LKnee),
         (MPIIPart.LAnkle, CocoPart.LAnkle),
     ]
-
     pose_2d_mpii = []
     visibility = []
     for mpi, coco in t:
@@ -167,7 +209,6 @@ def from_coco(human):  # Reversed y and x from tf_openpose
 def visibility_to_3d(single_visibility):
     _H36M_ORDER = [8, 9, 10, 11, 12, 13, 1, 0, 5, 6, 7, 2, 3, 4]
     _W_POS = [1, 2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15, 16]
-
     visibility_3d = np.ones(config.H36M_NUM_JOINTS)
     ordered_visibility = single_visibility[_H36M_ORDER]
     visibility_3d[_W_POS] = ordered_visibility
@@ -203,16 +244,20 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output', dest='output', default=None,
                         help='Output images directory path '
                              '(leave empty to not save images)')
+    parser.add_argument('-p', '--poses', dest='save_poses', default=None,
+                        help='Output poses directory path '
+                             '(leave empty to not save poses')
     parser.add_argument('-m', '--mode', dest='mode', default='openpose',
                         choices=['openpose', 'lftd'],
                         help='Engine for 2D pose computation')
     parser.add_argument('--2d', dest='do_3d', action='store_false',
                         default=True,
                         help='Whether to only compute 2D pose')
-    parser.add_argument('--track_one', dest='track_one', action='store_true',
-                        default=False,
-                        help='Whether to only track one human')
+    parser.add_argument('--track_all', dest='track_one', action='store_false',
+                        default=True,
+                        help='Whether to track all humans instead of only one')
+    parser.add_argument('-a', '--average', dest='average', default=0,
+                        type=int, help='Average over the last n frames')
     args = parser.parse_args()
-    print(args)
 
     sys.exit(main(args))

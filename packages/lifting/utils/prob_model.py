@@ -238,7 +238,7 @@ class Prob3dPose:
         rec = self.better_rec(w2, rec, 1, 1.55 * weights, 1) * -1
         rec = Prob3dPose.renorm_gt(rec)
         rec *= 0.97
-        return rec
+        return rec, r2
 
     def compute_3d(self, pose_2d, weights):
         """Reconstruct 3D poses given 2D estimations"""
@@ -257,5 +257,6 @@ class Prob3dPose:
         else:
             norm_pose, _ = Prob3dPose.normalise_data(pose_2d, weights)
 
-        pose_3d = self.create_rec(norm_pose, weights) * _SCALE_3D
-        return pose_3d
+        pose_3d, r = self.create_rec(norm_pose, weights)
+        pose_3d = pose_3d * _SCALE_3D
+        return pose_3d, r

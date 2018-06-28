@@ -24,6 +24,7 @@ if __name__ == '__main__':
                             'applications/demo-args.py',
                             '-i', in_file_path,
                             '-o', out_child_dir,
-                            '-m', 'openpose'])
+                            '-m', 'openpose',
+                            '--track_one'])
         else:
             print("File not found: {}".format(in_file))

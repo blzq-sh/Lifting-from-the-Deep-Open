@@ -125,6 +125,7 @@ class PoseEstimator(PoseEstimatorInterface):
         pose_2d = np.array([])
         pose_3d = np.array([])
         visibility = np.array([])
+        r = np.array([])
 
         if centers.size != 0:
             b_pose_image, b_pose_cmap = utils.prepare_input_posenet(
@@ -141,24 +142,26 @@ class PoseEstimator(PoseEstimatorInterface):
             # Estimate 2D poses
             start_2d = time.perf_counter()
             pred_2d_pose, pred_likelihood = sess.run([self.pred_2d_pose,
-                                                    self.likelihoods],
-                                                    feed_dict)
-            estimated_2d_pose, visibility = utils.detect_parts_from_likelihoods(pred_2d_pose,
-                                                                                centers,
-                                                                                pred_likelihood)
+                                                      self.likelihoods],
+                                                     feed_dict)
+            estimated_2d_pose, visibility = \
+                utils.detect_parts_from_likelihoods(pred_2d_pose,
+                                                    centers,
+                                                    pred_likelihood)
             end_2d = time.perf_counter()
 
             # Estimate 3D poses
             start_3d = time.perf_counter()
             transformed_pose2d, weights = self.poseLifting.transform_joints(
                 estimated_2d_pose.copy(), visibility)
-            pose_3d = self.poseLifting.compute_3d(transformed_pose2d, weights)
+            pose_3d, r = self.poseLifting.compute_3d(transformed_pose2d,
+                                                     weights)
             end_3d = time.perf_counter()
-            print("LFTD - 2D: {}, 3D: {}".format(
+            print("LFTD - 2D: {:.5f}, 3D: {:.5f}".format(
                 end_2d - start_2d, end_3d - start_3d))
             pose_2d = np.round(estimated_2d_pose / self.scale).astype(np.int32)
 
-        return pose_2d, visibility, pose_3d
+        return pose_2d, visibility, pose_3d, r
 
     def close(self):
         self.session.close()

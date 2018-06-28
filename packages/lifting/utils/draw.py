@@ -75,10 +75,14 @@ def plot_pose(pose, visibility, n_poses, pose_idx):
     assert (pose.ndim == 2)
     assert (pose.shape[0] == 3)
     ax = plt.subplot(1, n_poses, pose_idx, projection='3d')
-    for c in _CONNECTION:
+    for idc, c in enumerate(_CONNECTION):
         if not visibility[c[0]] or not visibility[c[1]]:
-            continue
-        col = '#%02x%02x%02x' % joint_color(c[0])
+            if idc in range(1, 7):  # Hip-Knee or Knee-Foot
+                continue
+            col = '#%02x%02x%02x' % \
+                tuple((jc // 2 for jc in joint_color(c[0])))
+        else:
+            col = '#%02x%02x%02x' % joint_color(c[0])
         ax.plot([pose[0, c[0]], pose[0, c[1]]],
                 [pose[1, c[0]], pose[1, c[1]]],
                 [pose[2, c[0]], pose[2, c[1]]], c=col)
@@ -88,8 +92,9 @@ def plot_pose(pose, visibility, n_poses, pose_idx):
         col = '#%02x%02x%02x' % joint_color(j)
         ax.scatter(pose[0, j], pose[1, j], pose[2, j],
                    c=col, marker='o', edgecolor=col)
-    smallest = pose.min()
-    largest = pose.max()
-    ax.set_xlim3d(smallest, largest)
-    ax.set_ylim3d(smallest, largest)
-    ax.set_zlim3d(smallest, largest)
+    # Set axes limits
+    # smallest = pose.min()
+    # largest = pose.max()
+    ax.set_xlim3d(-400, 600)
+    ax.set_ylim3d(-600, 400)
+    ax.set_zlim3d(-800, 700)
