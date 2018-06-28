@@ -80,7 +80,6 @@ def main(args):
             start_time_2D = time.perf_counter()
             pose_to_plot_2d = pose_estimator2D.inference(
                     color_im, resize_to_default=True, upsample_size=3.0)
-            pose_2d_mpii, visibility = to_mpii_pose_2d(pose_to_plot_2d)
             end_time_2D = time.perf_counter()
         else:
             # estimation by LFTD
@@ -88,13 +87,14 @@ def main(args):
                 pose_estimator.estimate(color_im)
             pose_to_plot_2d = estimated_pose_2d.copy()
 
-        if len(estimated_pose_2d) == 0:
+        if len(pose_to_plot_2d) == 0:
             plt.subplot(1, 1, 1)
             plt.imshow(color_im)
             plt.pause(0.01)
             continue
 
         if args.mode == 'openpose':
+            pose_2d_mpii, visibility = to_mpii_pose_2d(pose_to_plot_2d)
             estimated_pose_2d, weights = pose_lifter3D.transform_joints(
                 np.array(pose_2d_mpii), visibility)
 
@@ -127,16 +127,17 @@ def main(args):
             if n > 1:
                 r_diff = np.squeeze(theta) - np.squeeze(prev_theta)
                 if abs(r_diff) > 1:
-                    rotate_back = \
-                        np.array([[np.cos(r_diff), -np.sin(r_diff), 0],
-                                  [np.sin(r_diff), np.cos(r_diff),  0],
-                                  [0,              0,               1]])
-                    rotate_back = np.identity(3)
-                    pose_3d[0] = pose_3d[0].T.dot(rotate_back).T
-                    pose_3d[:, 1, 4, 11, 14] *= -1
-                    theta = prev_theta
+                    # print(n)
+                    # print("outside {}".format(prev_theta))
+                    pose_3d, new_r = pose_lifter3D.compute_3d(
+                        estimated_pose_2d, weights, prev_t=prev_theta)
+                    new_theta = np.arctan2(new_r[0], new_r[1])
+                    # print("new theta {}".format(new_theta))
+                    # print("before fix theta {}".format(theta))
+                    theta = new_theta
+
             prev_theta = theta
-            if args.average != 0 and False:
+            if args.average != 0:
                 last_n_pose_3d[(n-1) % args.average] = pose_3d
                 if n > args.average:
                     pose_3d = \

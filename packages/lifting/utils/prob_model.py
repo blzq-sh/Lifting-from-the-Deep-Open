@@ -153,7 +153,7 @@ class Prob3dPose:
 
     def affine_estimate(self, w, depth_reg=0.085, weights=None, scale=10.0,
                         scale_mean=0.0016 * 1.8 * 1.2, scale_std=1.2 * 0,
-                        cap_scale=-0.00129):
+                        cap_scale=-0.00129, prev_t=None):
         """
         Quick switch to allow reconstruction at unknown scale returns a,r
         and scale
@@ -180,7 +180,7 @@ class Prob3dPose:
 
         res, a, r = pick_e(w, e2, t_m, self.cam, s, weights=weights,
                            interval=config.INTERVAL, depth_reg=depth_reg,
-                           scale_prior=scale_mean)
+                           scale_prior=scale_mean, prev_t=prev_t)
 
         scale = a[:, :, 0]
         reestimate = scale > cap_scale
@@ -194,7 +194,8 @@ class Prob3dPose:
                     w[reestimate[i]], ehat, mhat, self.cam, shat,
                     weights=weights[reestimate[i]],
                     interval=config.INTERVAL, depth_reg=depth_reg,
-                    scale_prior=scale_mean
+                    scale_prior=scale_mean,
+                    prev_t=prev_t
                 )
                 res[i:i + 1, reestimate[i]] = res2
                 a[i:i + 1, reestimate[i], 1:] = a2
@@ -214,13 +215,14 @@ class Prob3dPose:
         out = matrix_multiply(self.cam.T[np.newaxis], proj)
         return out
 
-    def create_rec(self, w2, weights, res_weight=1):
+    def create_rec(self, w2, weights, res_weight=1, prev_t=None):
         """Reconstruct 3D pose given a 2D pose"""
         _SIGMA_SCALING = 5.2
 
         res, e, a, r, scale = self.affine_estimate(
             w2, scale=_SIGMA_SCALING, weights=weights,
-            depth_reg=0, cap_scale=-0.001, scale_mean=-0.003
+            depth_reg=0, cap_scale=-0.001, scale_mean=-0.003,
+            prev_t=prev_t
         )
 
         remaining_dims = 3 * w2.shape[2] - e.shape[1]
@@ -240,7 +242,7 @@ class Prob3dPose:
         rec *= 0.97
         return rec, r2
 
-    def compute_3d(self, pose_2d, weights):
+    def compute_3d(self, pose_2d, weights, prev_t=None):
         """Reconstruct 3D poses given 2D estimations"""
 
         _J_POS = [1, 2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15, 16]
@@ -257,6 +259,6 @@ class Prob3dPose:
         else:
             norm_pose, _ = Prob3dPose.normalise_data(pose_2d, weights)
 
-        pose_3d, r = self.create_rec(norm_pose, weights)
+        pose_3d, r = self.create_rec(norm_pose, weights, prev_t=prev_t)
         pose_3d = pose_3d * _SCALE_3D
         return pose_3d, r

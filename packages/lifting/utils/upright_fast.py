@@ -129,7 +129,7 @@ def estimate_a_and_r_with_res(
 
 def estimate_a_and_r_with_res_weights(
         w, e, s0, camera_r, Lambda, check, a, weights, res, proj_e,
-        residue, Ps, depth_reg, scale_prior):
+        residue, Ps, depth_reg, scale_prior, prev_t=None):
     """
     TODO: Missing the following parameters in docstring:
      - w, e, s0, camera)r, Lambda, check, a, res, proj_e, residue,
@@ -222,7 +222,8 @@ def estimate_a_and_r_with_res_weights(
 
 
 def pick_e(w, e, s0, camera_r=None, Lambda=None,
-           weights=None, scale_prior=-0.0014, interval=0.01, depth_reg=0.0325):
+           weights=None, scale_prior=-0.0014, interval=0.01, depth_reg=0.0325,
+           prev_t=None):
     """Brute force over charts from the manifold to find the best one.
         Returns best chart index and its a and r coefficients
         Returns assignment, and a and r coefficents"""
@@ -240,7 +241,12 @@ def pick_e(w, e, s0, camera_r=None, Lambda=None,
     r = np.empty((charts, 2, frames))
     a = np.empty((charts, frames, e.shape[1]))
     score = np.empty((charts, frames))
-    check = np.arange(0, 1, interval) * 2 * np.pi
+    if prev_t is None:
+        check = np.arange(0, 1, interval) * 2 * np.pi
+    else:
+        prev_t = prev_t if prev_t >= 0 else (2 * np.pi + prev_t)
+        prev_t = prev_t / (2 * np.pi)
+        check = np.arange(prev_t-0.05, prev_t+0.06, interval) * 2 * np.pi
     cache_a = np.empty((check.size, basis, frames))
     residue = np.empty((check.size, frames))
 
