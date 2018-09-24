@@ -1,10 +1,12 @@
 Install notes for Openpose+LFTD demo
 
+-- For OpenCV camera support only
 Install OpenNI2 from github.com/occipital/openni2 using installation steps there
 get environment variables in `Packaging/Final/OpenNI-<version>/OpenNIDevEnvironment` before
 building and installing OpenCV with OpenNI2 support from source - set cmake variable `WITH_OPENNI2`
 
+-- OpenPose and LFTD models
 Install github.com/ildoonet/tf-pose-estimation as user library `python3 setup.py install --user`
-// Better to include this library in `packages` within repo instead of system install
+// Would be better to include this library in `packages` within repo instead of system install
 
 Install LFTD pose model (`setup.sh`)
