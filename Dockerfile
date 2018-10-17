@@ -61,7 +61,11 @@ RUN sudo curl https://bootstrap.pypa.io/get-pip.py  -o get-pip.py \
 RUN pip3 install --user tensorflow-gpu cython scipy sklearn pandas \
     scikit-image opencv-python protobuf
 
+RUN mkdir Dependencies && cd Dependencies && git clone https://github.com/occipital/OpenNI2.git
+
 RUN cd Dependencies/OpenNI2 && make && cd Packaging && python ReleaseVersion.py x64
+
+RUN cd Dependencies && git clone https://github.com/ildoonet/tf-pose-estimation.git
 
 RUN cd Dependencies/tf-pose-estimation && pip3 install --user -r requirements.txt \
     && cd tf_pose/pafprocess && swig -python -c++ pafprocess.i && python3 setup.py build_ext --inplace
