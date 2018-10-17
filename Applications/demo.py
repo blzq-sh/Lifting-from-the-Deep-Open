@@ -18,8 +18,8 @@ from os.path import dirname, realpath
 
 DIR_PATH = dirname(realpath(__file__))
 PROJECT_PATH = realpath(DIR_PATH + '/..')
-IMAGE_FILE_PATH = PROJECT_PATH + '/data/images/test_image.png'
-SAVED_SESSIONS_DIR = PROJECT_PATH + '/data/saved_sessions'
+IMAGE_FILE_PATH = PROJECT_PATH + '/Data/images/test_image.png'
+SAVED_SESSIONS_DIR = PROJECT_PATH + '/Data/saved_sessions'
 SESSION_PATH = SAVED_SESSIONS_DIR + '/init_session/init'
 PROB_MODEL_PATH = SAVED_SESSIONS_DIR + '/prob_model/prob_model_params.mat'
 

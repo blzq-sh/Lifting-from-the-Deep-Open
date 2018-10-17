@@ -3,7 +3,11 @@ from os import path
 import sys
 import subprocess
 
-IN_DIR = '/home/ben/Downloads/input_pose_videos'
+IN_DIR = '/home/ben/Downloads/input_pose_videos' 
+"""
+TODO: absolute paths like the previous one make the application 
+usable only on your PC. Would be good to use parameters instead           
+"""
 OUT_PARENT_DIR = '/home/ben/Documents/output_pose_batch'
 
 if __name__ == '__main__':
