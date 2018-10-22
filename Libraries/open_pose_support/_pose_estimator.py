@@ -106,21 +106,19 @@ class OpPoseBasedLFTDLifter(PoseEstimatorInterface):
             np.array(pose_2d_mpii), visibility)
         pose_3d = self._lifter_3d.compute_3d(transformed_pose_2d, weights)
 
-        
-        aux_y = pose_2d_mpii[0][:,0]*480
-        aux_x = pose_2d_mpii[0][:,1]*640
-        pose_2d_mpii[0][:,0] = aux_y
-        pose_2d_mpii[0][:,1] = aux_x
+        pose_2d_mpii[0][:, 0] = pose_2d_mpii[0][:, 0] * 480
+        pose_2d_mpii[0][:, 1] = pose_2d_mpii[0][:, 1] * 640
 
+        """
         aux_y = transformed_pose_2d[0][:,1]*480
         aux_x = transformed_pose_2d[0][:,0]*640
         transformed_pose_2d[0][:,0] = aux_y
         transformed_pose_2d[0][:,1] = aux_x
+        """
 
         pose_2d_mpii = pose_2d_mpii.astype(int)
-        transformed_pose_2d = transformed_pose_2d.astype(int)
+        #transformed_pose_2d = transformed_pose_2d.astype(int)
 
-        #import pdb; pdb.set_trace()
         return pose_2d_mpii, visibility, pose_3d
 
     def initialise(self):
