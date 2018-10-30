@@ -23,4 +23,10 @@ cd ../..
 echo 'Installing dependencies...'
 pip3 install scikit-image
 
+echo 'Cloning and installing dependencies...'
+mkdir Dependencies && cd Dependencies
+git clone https://github.com/ildoonet/tf-pose-estimation.git && cd tf-pose-estimation
+pip3 install --user -r requirements.txt && python3 setup.py install --user
+cd ../.. && rm -r --interactive=never Dependencies
+
 echo 'Done'
