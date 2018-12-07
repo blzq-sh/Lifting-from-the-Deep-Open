@@ -10,7 +10,8 @@ import numpy as np
 
 
 __all__ = [
-    'OpPoseLFTDEstimator'
+    'OpPoseLFTDEstimator',
+    'PlainOpPoseEstimator'
 ]
 
 
@@ -56,6 +57,17 @@ def to_mpii_pose_2d(humans):
     return np.array(pose_2d_mpii), np.array(visibility)
 
 
+def restructure_2d_pose(pose, width, height):
+    pose_2d_mpii, visibility = to_mpii_pose_2d(pose)
+
+    pose_2d_mpii[0][:, 0] = pose_2d_mpii[0][:, 0] * height
+    pose_2d_mpii[0][:, 1] = pose_2d_mpii[0][:, 1] * width
+
+    pose_2d_mpii = pose_2d_mpii.astype(int)
+
+    return pose_2d_mpii
+
+
 class HybridPoseEstimator(PoseEstimatorInterface):
     def __init__(self, estimator_2d=None, estimator_3d=None):
         self._estimator_2d = estimator_2d
@@ -68,9 +80,16 @@ class HybridPoseEstimator(PoseEstimatorInterface):
 
         if self._estimator_2d:
             pose_2d = self._estimator_2d.estimate(image)
-        if self._estimator_3d:
-            pose_2d, visibility, pose_3d = self.\
-                _estimator_3d.estimate(pose_2d)
+            if self._estimator_3d:
+                pose_2d, visibility, pose_3d = self.\
+                    _estimator_3d.estimate(pose_2d)
+            else:
+                pose_2d = restructure_2d_pose(pose_2d,
+                                              self._estimator_2d.image_width,
+                                              self._estimator_2d.image_height)
+                visibility = [[not np.array_equal(joint, np.array([0, 0]))
+                              for joint in pose] for pose in pose_2d]
+                pose_3d = None
         return pose_2d, visibility, pose_3d
 
     def initialise(self):
@@ -81,10 +100,20 @@ class HybridPoseEstimator(PoseEstimatorInterface):
 
 
 class OpPoseEstimatorDecorator(PoseEstimatorInterface):
-    def __init__(self, estimator, resize, upsample):
+    def __init__(self, estimator, size, resize, upsample):
         self._estimator = estimator
         self._resize = resize
         self._upsample = upsample
+        self._image_height = size[0]
+        self._image_width = size[1]
+
+    @property
+    def image_width(self):
+        return self._image_width
+
+    @property
+    def image_height(self):
+        return self._image_height
 
     def estimate(self, image):
         return self._estimator.inference(image, self._resize, self._upsample)
@@ -97,8 +126,10 @@ class OpPoseEstimatorDecorator(PoseEstimatorInterface):
 
 
 class OpPoseBasedLFTDLifter(PoseEstimatorInterface):
-    def __init__(self, model_path):
+    def __init__(self, model_path, image_width, image_height):
         self._lifter_3d = Prob3dPose(model_path)
+        self._image_width = image_width
+        self._image_height = image_height
 
     def estimate(self, pose_2d):
         pose_2d_mpii, visibility = to_mpii_pose_2d(pose_2d)
@@ -106,18 +137,10 @@ class OpPoseBasedLFTDLifter(PoseEstimatorInterface):
             np.array(pose_2d_mpii), visibility)
         pose_3d = self._lifter_3d.compute_3d(transformed_pose_2d, weights)
 
-        pose_2d_mpii[0][:, 0] = pose_2d_mpii[0][:, 0] * 480
-        pose_2d_mpii[0][:, 1] = pose_2d_mpii[0][:, 1] * 640
-
-        """
-        aux_y = transformed_pose_2d[0][:,1]*480
-        aux_x = transformed_pose_2d[0][:,0]*640
-        transformed_pose_2d[0][:,0] = aux_y
-        transformed_pose_2d[0][:,1] = aux_x
-        """
+        pose_2d_mpii[0][:, 0] = pose_2d_mpii[0][:, 0] * self._image_height
+        pose_2d_mpii[0][:, 1] = pose_2d_mpii[0][:, 1] * self._image_width
 
         pose_2d_mpii = pose_2d_mpii.astype(int)
-        #transformed_pose_2d = transformed_pose_2d.astype(int)
 
         return pose_2d_mpii, visibility, pose_3d
 
@@ -130,14 +153,29 @@ class OpPoseBasedLFTDLifter(PoseEstimatorInterface):
 
 def OpPoseLFTDEstimator(image_size, lifter_model_path, resize=True,
                         upsample=2.0):
-    #import pdb;pdb.set_trace()
+    open_pose_estimator = OpPoseEstimator(get_graph_path('cmu'),
+                                          target_size=(image_size[1],
+                                                       image_size[0]))
+    #'import pdb; pdb.set_trace()
+    estimator_2d = OpPoseEstimatorDecorator(open_pose_estimator, image_size,
+                                            resize, upsample)
+    estimator_3d = OpPoseBasedLFTDLifter(lifter_model_path, image_size[1],
+                                         image_size[0])
+
+    est = HybridPoseEstimator(estimator_2d, estimator_3d)
+
+    return est
+
+
+def PlainOpPoseEstimator(image_size, lifter_model_path, resize=True,
+                         upsample=2.0):
     open_pose_estimator = OpPoseEstimator(get_graph_path('cmu'),
                                           target_size=(image_size[1],
                                                        image_size[0]))
 
-    estimator_2d = OpPoseEstimatorDecorator(open_pose_estimator, resize,
-                                            upsample)
-    estimator_3d = OpPoseBasedLFTDLifter(lifter_model_path)
+    estimator_2d = OpPoseEstimatorDecorator(open_pose_estimator, image_size,
+                                            resize, upsample)
+    estimator_3d = None
 
     est = HybridPoseEstimator(estimator_2d, estimator_3d)
 
