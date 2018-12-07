@@ -59,8 +59,8 @@ def to_mpii_pose_2d(humans):
 def restructure_2d_pose(pose, width, height):
     pose_2d_mpii, visibility = to_mpii_pose_2d(pose)
 
-    pose_2d_mpii[0][:, 0] = pose_2d_mpii[0][:, 0] * width
-    pose_2d_mpii[0][:, 1] = pose_2d_mpii[0][:, 1] * height
+    pose_2d_mpii[0][:, 0] = pose_2d_mpii[0][:, 0] * height
+    pose_2d_mpii[0][:, 1] = pose_2d_mpii[0][:, 1] * width
 
     pose_2d_mpii = pose_2d_mpii.astype(int)
 
