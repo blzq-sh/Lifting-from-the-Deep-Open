@@ -126,8 +126,10 @@ class OpPoseEstimatorDecorator(PoseEstimatorInterface):
 
 
 class OpPoseBasedLFTDLifter(PoseEstimatorInterface):
-    def __init__(self, model_path):
+    def __init__(self, model_path, image_width, image_height):
         self._lifter_3d = Prob3dPose(model_path)
+        self._image_width = image_width
+        self._image_height = image_height
 
     def estimate(self, pose_2d):
         pose_2d_mpii, visibility = to_mpii_pose_2d(pose_2d)
@@ -135,18 +137,10 @@ class OpPoseBasedLFTDLifter(PoseEstimatorInterface):
             np.array(pose_2d_mpii), visibility)
         pose_3d = self._lifter_3d.compute_3d(transformed_pose_2d, weights)
 
-        pose_2d_mpii[0][:, 0] = pose_2d_mpii[0][:, 0] * 480
-        pose_2d_mpii[0][:, 1] = pose_2d_mpii[0][:, 1] * 640
-
-        """
-        aux_y = transformed_pose_2d[0][:,1]*480
-        aux_x = transformed_pose_2d[0][:,0]*640
-        transformed_pose_2d[0][:,0] = aux_y
-        transformed_pose_2d[0][:,1] = aux_x
-        """
+        pose_2d_mpii[0][:, 0] = pose_2d_mpii[0][:, 0] * self._image_height
+        pose_2d_mpii[0][:, 1] = pose_2d_mpii[0][:, 1] * self._image_width
 
         pose_2d_mpii = pose_2d_mpii.astype(int)
-        #transformed_pose_2d = transformed_pose_2d.astype(int)
 
         return pose_2d_mpii, visibility, pose_3d
 
@@ -162,10 +156,11 @@ def OpPoseLFTDEstimator(image_size, lifter_model_path, resize=True,
     open_pose_estimator = OpPoseEstimator(get_graph_path('cmu'),
                                           target_size=(image_size[1],
                                                        image_size[0]))
-
+    #'import pdb; pdb.set_trace()
     estimator_2d = OpPoseEstimatorDecorator(open_pose_estimator, image_size,
                                             resize, upsample)
-    estimator_3d = OpPoseBasedLFTDLifter(lifter_model_path)
+    estimator_3d = OpPoseBasedLFTDLifter(lifter_model_path, image_size[1],
+                                         image_size[0])
 
     est = HybridPoseEstimator(estimator_2d, estimator_3d)
 
