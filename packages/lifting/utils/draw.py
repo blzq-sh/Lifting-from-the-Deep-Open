@@ -29,7 +29,11 @@ def draw_limbs(image, pose_2d, visible):
     _LIMBS = np.array([0, 1, 2, 3, 3, 4, 5, 6, 6, 7, 8, 9,
                        9, 10, 11, 12, 12, 13]).reshape((-1, 2))
 
-    _NORMALISATION_FACTOR = int(math.floor(math.sqrt(image.shape[0] * image.shape[1] / NORMALISATION_COEFFICIENT)))
+    _NORMALISATION_FACTOR = math.sqrt(image.shape[0] * image.shape[1] / NORMALISATION_COEFFICIENT)
+    circle_draw_size = max(1, int(math.floor(JOINT_DRAW_SIZE*_NORMALISATION_FACTOR)))
+    line_draw_size = max(1, int(math.floor(LIMB_DRAW_SIZE*_NORMALISATION_FACTOR)))
+
+
 
     for oid in range(pose_2d.shape[0]):
         for lid, (p0, p1) in enumerate(_LIMBS):
@@ -37,10 +41,10 @@ def draw_limbs(image, pose_2d, visible):
                 continue
             y0, x0 = pose_2d[oid][p0]
             y1, x1 = pose_2d[oid][p1]
-            cv2.circle(image, (x0, y0), JOINT_DRAW_SIZE*_NORMALISATION_FACTOR, _COLORS[lid], -1)
-            cv2.circle(image, (x1, y1), JOINT_DRAW_SIZE*_NORMALISATION_FACTOR, _COLORS[lid], -1)
+            cv2.circle(image, (x0, y0), circle_draw_size , _COLORS[lid], -1)
+            cv2.circle(image, (x1, y1), int(math.floor(JOINT_DRAW_SIZE*_NORMALISATION_FACTOR)), _COLORS[lid], -1)
             cv2.line(image, (x0, y0), (x1, y1),
-                     _COLORS[lid], LIMB_DRAW_SIZE*_NORMALISATION_FACTOR, 16)
+                     _COLORS[lid], line_draw_size, 16)
 
 
 def plot_pose(pose, visibility, n_poses, pose_idx):
