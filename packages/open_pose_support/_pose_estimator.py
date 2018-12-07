@@ -10,7 +10,8 @@ import numpy as np
 
 
 __all__ = [
-    'OpPoseLFTDEstimator'
+    'OpPoseLFTDEstimator',
+    'PlainOpPoseEstimator'
 ]
 
 
@@ -158,14 +159,27 @@ class OpPoseBasedLFTDLifter(PoseEstimatorInterface):
 
 def OpPoseLFTDEstimator(image_size, lifter_model_path, resize=True,
                         upsample=2.0):
-    #import pdb;pdb.set_trace()
     open_pose_estimator = OpPoseEstimator(get_graph_path('cmu'),
                                           target_size=(image_size[1],
                                                        image_size[0]))
 
     estimator_2d = OpPoseEstimatorDecorator(open_pose_estimator, image_size,
                                             resize, upsample)
-    #estimator_3d = OpPoseBasedLFTDLifter(lifter_model_path)
+    estimator_3d = OpPoseBasedLFTDLifter(lifter_model_path)
+
+    est = HybridPoseEstimator(estimator_2d, estimator_3d)
+
+    return est
+
+
+def PlainOpPoseEstimator(image_size, lifter_model_path, resize=True,
+                         upsample=2.0):
+    open_pose_estimator = OpPoseEstimator(get_graph_path('cmu'),
+                                          target_size=(image_size[1],
+                                                       image_size[0]))
+
+    estimator_2d = OpPoseEstimatorDecorator(open_pose_estimator, image_size,
+                                            resize, upsample)
     estimator_3d = None
 
     est = HybridPoseEstimator(estimator_2d, estimator_3d)
