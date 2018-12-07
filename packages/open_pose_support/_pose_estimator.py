@@ -56,6 +56,17 @@ def to_mpii_pose_2d(humans):
     return np.array(pose_2d_mpii), np.array(visibility)
 
 
+def restructure_2d_pose(pose, width, height):
+    pose_2d_mpii, visibility = to_mpii_pose_2d(pose)
+
+    pose_2d_mpii[0][:, 0] = pose_2d_mpii[0][:, 0] * width
+    pose_2d_mpii[0][:, 1] = pose_2d_mpii[0][:, 1] * height
+
+    pose_2d_mpii = pose_2d_mpii.astype(int)
+
+    return pose_2d_mpii
+
+
 class HybridPoseEstimator(PoseEstimatorInterface):
     def __init__(self, estimator_2d=None, estimator_3d=None):
         self._estimator_2d = estimator_2d
@@ -68,9 +79,16 @@ class HybridPoseEstimator(PoseEstimatorInterface):
 
         if self._estimator_2d:
             pose_2d = self._estimator_2d.estimate(image)
-        if self._estimator_3d:
-            pose_2d, visibility, pose_3d = self.\
-                _estimator_3d.estimate(pose_2d)
+            if self._estimator_3d:
+                pose_2d, visibility, pose_3d = self.\
+                    _estimator_3d.estimate(pose_2d)
+            else:
+                pose_2d = restructure_2d_pose(pose_2d,
+                                              self._estimator_2d.image_width,
+                                              self._estimator_2d.image_height)
+                visibility = [[not np.array_equal(joint, np.array([0, 0]))
+                              for joint in pose] for pose in pose_2d]
+                pose_3d = None
         return pose_2d, visibility, pose_3d
 
     def initialise(self):
@@ -81,10 +99,20 @@ class HybridPoseEstimator(PoseEstimatorInterface):
 
 
 class OpPoseEstimatorDecorator(PoseEstimatorInterface):
-    def __init__(self, estimator, resize, upsample):
+    def __init__(self, estimator, size, resize, upsample):
         self._estimator = estimator
         self._resize = resize
         self._upsample = upsample
+        self._image_height = size[0]
+        self._image_width = size[1]
+
+    @property
+    def image_width(self):
+        return self._image_width
+
+    @property
+    def image_height(self):
+        return self._image_height
 
     def estimate(self, image):
         return self._estimator.inference(image, self._resize, self._upsample)
@@ -135,9 +163,10 @@ def OpPoseLFTDEstimator(image_size, lifter_model_path, resize=True,
                                           target_size=(image_size[1],
                                                        image_size[0]))
 
-    estimator_2d = OpPoseEstimatorDecorator(open_pose_estimator, resize,
-                                            upsample)
-    estimator_3d = OpPoseBasedLFTDLifter(lifter_model_path)
+    estimator_2d = OpPoseEstimatorDecorator(open_pose_estimator, image_size,
+                                            resize, upsample)
+    #estimator_3d = OpPoseBasedLFTDLifter(lifter_model_path)
+    estimator_3d = None
 
     est = HybridPoseEstimator(estimator_2d, estimator_3d)
 
